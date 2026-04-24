@@ -291,29 +291,40 @@ impl Backend for DomBackend {
         if !*self.initialized.borrow() {
             self.initialized.replace(true);
 
-            // Clear cursor position to avoid modifying css style of a non-existent cell
-            self.cursor_position = None;
-            self.last_cursor_position = None;
-
-            // Only runs on resize event.
-            if self
+            let grid_exists = self
                 .document
                 .get_element_by_id(&self.options.grid_id())
-                .is_some()
-            {
-                self.grid_parent.set_inner_html("");
-                self.reset_grid()?;
+                .is_some();
 
-                // re-measure cell size and update grid dimensions
-                self.cell_size = Self::measure_cell_size(&self.document, &self.grid_parent)
-                    .unwrap_or(DEFAULT_CELL_SIZE);
-                self.size = Self::calculate_size(&self.grid_parent, self.cell_size);
+            if grid_exists {
+                // Re-measure to check if the grid size actually changed.
+                // Mobile browsers fire resize on scroll (address bar show/hide)
+                // without changing the effective grid dimensions.
+                let new_cell_size =
+                    Self::measure_cell_size(&self.document, &self.grid_parent)
+                        .unwrap_or(DEFAULT_CELL_SIZE);
+                let new_size = Self::calculate_size(&self.grid_parent, new_cell_size);
+
+                if new_size != self.size {
+                    self.cursor_position = None;
+                    self.last_cursor_position = None;
+                    self.grid_parent.set_inner_html("");
+                    self.reset_grid()?;
+                    self.cell_size = new_cell_size;
+                    self.size = new_size;
+
+                    self.grid_parent
+                        .append_child(&self.grid)
+                        .map_err(Error::from)?;
+                    self.populate()?;
+                }
+            } else {
+                // First initialization — grid not yet in DOM
+                self.grid_parent
+                    .append_child(&self.grid)
+                    .map_err(Error::from)?;
+                self.populate()?;
             }
-
-            self.grid_parent
-                .append_child(&self.grid)
-                .map_err(Error::from)?;
-            self.populate()?;
         }
 
         for (x, y, cell) in content {
