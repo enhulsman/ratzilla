@@ -448,12 +448,12 @@ impl WebEventHandler for DomBackend {
         // Cell dimensions are derived from element dimensions / grid size
         let config = MouseConfig::new(self.size.width, self.size.height);
 
-        // Use the grid element for coordinate calculation
-        let element = self.grid.clone();
+        // Use the grid parent for coordinate calculation — it survives resize
+        let element = self.grid_parent.clone();
 
-        // Create mouse event callback
+        // Attach to grid_parent so events survive grid element recreation on resize
         let mouse_callback = EventCallback::new(
-            self.grid.clone(),
+            self.grid_parent.clone(),
             MOUSE_EVENT_TYPES,
             move |event: web_sys::MouseEvent| {
                 let mouse_event = create_mouse_event(&event, &element, &config);
@@ -477,11 +477,11 @@ impl WebEventHandler for DomBackend {
         // Clear any existing handlers first
         self.clear_key_events();
 
-        // Make the grid element focusable so it can receive key events
-        self.grid.set_attribute("tabindex", "0")?;
+        // Attach to grid_parent so events survive grid element recreation on resize
+        self.grid_parent.set_attribute("tabindex", "0")?;
 
         self.key_callback = Some(EventCallback::new(
-            self.grid.clone(),
+            self.grid_parent.clone(),
             KEY_EVENT_TYPES,
             move |event: web_sys::KeyboardEvent| {
                 callback(event.into());
