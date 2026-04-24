@@ -400,11 +400,7 @@ impl Backend for DomBackend {
     }
 
     fn size(&self) -> IoResult<Size> {
-        let size = get_size();
-        Ok(Size::new(
-            size.width.saturating_sub(1),
-            size.height.saturating_sub(1),
-        ))
+        Ok(self.size)
     }
 
     fn window_size(&mut self) -> IoResult<WindowSize> {
